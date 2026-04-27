@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>multichain-wallet-portfolio — PRD</title>
+  <style>
+    body{font-family:Inter,Arial,sans-serif;background:#0a0a0f;color:#e8e8f0;margin:0;line-height:1.6}
+    .wrap{max-width:1100px;margin:0 auto;padding:32px 24px 64px}
+    .hero{background:linear-gradient(135deg,#111118,#1c1c31);padding:32px;border-bottom:2px solid #f5c842}
+    h1,h2{margin:0 0 12px}.card{background:#12121a;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:22px;margin:20px 0}
+    .muted{color:#a0a3bd}.badge{display:inline-block;padding:6px 12px;border-radius:18px;margin:4px 8px 0 0;background:rgba(245,200,66,.12);color:#f5c842}
+    ul{padding-left:20px} code{background:rgba(245,200,66,.1);padding:2px 6px;border-radius:6px;color:#f5c842}
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="wrap">
+      <h1>💼 multichain-wallet-portfolio</h1>
+      <p class="muted">PRD inicial da skill MQC para portfolio multi-chain por wallet com foco em EVM, Solana e Hyperliquid.</p>
+      <span class="badge">Operacional</span>
+      <span class="badge">Python</span>
+      <span class="badge">1 wallet por execução</span>
+      <span class="badge">USD-first</span>
+      <span class="badge">Direitos reservados</span>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <h2>🎯 Objetivo</h2>
+      <p>Consolidar snapshot de portfolio de uma wallet com resumo executivo, valores em USD quando disponíveis, variação 24h, cobertura/confiança explícitas, insights curtos e blocos detalhados por rede/categoria.</p>
+    </div>
+    <div class="card">
+      <h2>🌐 Escopo da v1</h2>
+      <ul>
+        <li><strong>EVM:</strong> catálogo aberto por configuração, autodetecção e pergunta em caso de ambiguidade.</li>
+        <li><strong>Solana:</strong> SOL, SPL, staking quando visível e DeFi quando disponível.</li>
+        <li><strong>Hyperliquid:</strong> equity, posições e ordens abertas.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>🧩 Saída</h2>
+      <ul>
+        <li>💼 resumo executivo</li>
+        <li>📈 variação 24h por carteira/ativo/posição quando disponível</li>
+        <li>⚠️ cobertura e limites</li>
+        <li>🟢 stablecoins e concentração resumida</li>
+        <li>🧠 insights curtos e conservadores</li>
+        <li>📌 ações sugeridas só quando houver motivo claro</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>🛠 Stack técnica</h2>
+      <ul>
+        <li><code>workspace/run.py</code> como executor principal</li>
+        <li>adaptadores em <code>workspace/adapters/</code></li>
+        <li>normalização em <code>workspace/normalizer.py</code></li>
+        <li>sem API key obrigatória na base inicial</li>
+        <li>provider opcional preparado para evolução futura</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>⚠️ Estado atual</h2>
+      <p>Esta versão já cria a estrutura MQC completa e o executor real, mas ainda está em base inicial de integração. A arquitetura está pronta; os conectores enriquecidos por rede ainda serão implementados e validados nos próximos passos.</p>
+    </div>
+  </div>
+</body>
+</html>

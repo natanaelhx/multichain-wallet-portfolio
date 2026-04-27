@@ -1,0 +1,5 @@
+{
+  "wallet": "examplewallet.sol",
+  "network": "solana",
+  "format": "json"
+}
