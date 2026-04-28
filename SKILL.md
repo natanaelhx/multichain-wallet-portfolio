@@ -20,6 +20,7 @@ A skill é **somente leitura**: não assina transações, não conecta wallet, n
 
 Use quando o usuário pedir:
 
+- `/wallet-portfolio`
 - `/wallet`
 - saldo ou resumo de uma wallet
 - portfolio multi-chain em USD
@@ -29,7 +30,7 @@ Use quando o usuário pedir:
 - equity, posições, ordens abertas ou PnL em Hyperliquid
 - relatório manual ou saída pronta para cron diário
 - exposição, stablecoins, concentração, variação 24h ou insights curtos
-- frases como `analisa minha wallet`, `mostra meu portfolio`, `quero ver minha carteira`, `wallet`, `portfolio wallet`
+- frases como `analisa minha wallet`, `mostra meu portfolio`, `quero ver minha carteira`, `wallet`, `portfolio wallet`, `wallet portfolio`
 
 ## Como Funciona
 
@@ -109,12 +110,17 @@ Exemplo:
 
 A skill deve ser reconhecida de forma forte quando o usuário enviar:
 
+- `/wallet-portfolio`
 - `/wallet`
 - `wallet`
+- `/wallet-portfolio <endereco>`
 - `/wallet <endereco>`
 - `analisa wallet`
 
-Quando o usuário enviar apenas `/wallet`, o comportamento esperado é abrir imediatamente o first run operacional e perguntar pela wallet.
+`/wallet-portfolio` deve ser tratado como gatilho principal.
+`/wallet` deve permanecer como atalho compatível.
+
+Quando o usuário enviar apenas `/wallet-portfolio` ou `/wallet`, o comportamento esperado é abrir imediatamente o first run operacional e perguntar pela wallet.
 
 ## Formato de Resposta
 
