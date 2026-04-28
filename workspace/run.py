@@ -35,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--networks', default='ethereum,base,arbitrum,optimism,polygon,bnb,solana,hyperliquid')
     parser.add_argument('--format', choices=['pretty', 'json'], default='pretty')
     parser.add_argument('--first-run', action='store_true')
+    parser.add_argument('--show-warnings', action='store_true', help='Mostra avisos técnicos de coleta em stderr.')
     return parser
 
 
@@ -78,6 +79,7 @@ def main() -> int:
         config = _load_wallets_file(args.wallets_file)
         networks = [item.strip().lower() for item in args.networks.split(',') if item.strip()]
         results = []
+        warnings = []
         for network in networks:
             wallet = _wallet_for_network(network, args, config)
             if not wallet:
@@ -85,9 +87,12 @@ def main() -> int:
             try:
                 results.append(_collect(wallet, network))
             except Exception as exc:
-                print(f'Aviso: falha ao coletar {network}: {exc}', file=sys.stderr)
+                warning = f'falha ao coletar {network}: {exc}'
+                warnings.append(warning)
+                if args.show_warnings:
+                    print(f'Aviso: {warning}', file=sys.stderr)
         if args.format == 'json':
-            print(json.dumps({"ok": True, "mode": "daily", "results": [to_json_dict(r) for r in results]}, ensure_ascii=False, indent=2))
+            print(json.dumps({"ok": True, "mode": "daily", "warnings": warnings, "results": [to_json_dict(r) for r in results]}, ensure_ascii=False, indent=2))
         else:
             print(render_daily_summary(results))
         return 0

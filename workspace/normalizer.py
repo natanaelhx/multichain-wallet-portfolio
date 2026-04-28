@@ -75,14 +75,31 @@ def _fmt_usd(value: float | None) -> str:
 def _fmt_amount(value: Any) -> str:
     if value in {None, "", "n/d"}:
         return "n/d"
+    text = str(value).strip()
+    # Protocol positions may already provide a human phrase like
+    # "supply 123 USDC / borrow 10 USDC". Keep it readable instead of
+    # forcing numeric parsing.
+    if any(ch.isalpha() for ch in text) and not text.replace(".", "", 1).replace("-", "", 1).isdigit():
+        return text
     try:
-        number = float(str(value).replace(".", "").replace(",", ".")) if "," in str(value) else float(value)
+        number = float(text.replace(".", "").replace(",", ".")) if "," in text else float(text)
     except Exception:
-        return str(value)
+        return text
     if number == 0:
         return "0"
     formatted = f"{number:,.10f}".rstrip("0").rstrip(".")
     return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _fmt_position_line(position: Dict[str, Any]) -> str:
+    name = str(position.get("name") or "POSITION")
+    size = _fmt_amount(position.get("size", "n/d"))
+    opened = position.get("open_duration")
+    opened_suffix = f" | aberta há {opened}" if opened and opened != "n/d" else ""
+    # If size is already a protocol phrase, do not append the asset name again.
+    if any(ch.isalpha() for ch in size):
+        return f"• posição: {size}{opened_suffix}"
+    return f"• posição: {size} {name}{opened_suffix}"
 
 
 def _today_brt() -> str:
@@ -153,11 +170,11 @@ def render_daily_summary(results: Iterable[PortfolioResult]) -> str:
     coverage = "média" if visible else "baixa"
 
     lines = [
-        f"# 💼 Portfólio — {date_label}",
+        f"💼 Portfólio — {date_label}",
         "",
-        f"**💰 Total estimado:** **${_fmt_usd(total_known)}**" + (" + parcial" if has_partial else ""),
-        "**📈 Variação total 24h:** **parcial**",
-        f"**⚠️ Cobertura:** **{coverage}**",
+        f"💰 Total estimado: ${_fmt_usd(total_known)}" + (" + parcial" if has_partial else ""),
+        "📈 Variação total 24h: parcial",
+        f"⚠️ Cobertura: {coverage}",
         "",
         "---",
     ]
@@ -167,7 +184,7 @@ def render_daily_summary(results: Iterable[PortfolioResult]) -> str:
             "",
             "Nenhuma wallet com saldo/preço confiável foi configurada para o resumo diário.",
             "",
-            "## 📌 Ações sugeridas",
+            "📌 Ações sugeridas",
             "- preencher uma config local fora do Git com wallets reais",
             "- rodar novamente com `--wallets-file /caminho/seguro/wallets.json`",
         ])
@@ -177,29 +194,26 @@ def render_daily_summary(results: Iterable[PortfolioResult]) -> str:
         priced_balances = _daily_priced_balances(result)
         if not priced_balances and not result.positions:
             continue
-        lines.extend(["", f"### {_network_icon(result.network)} {_network_label(result.network)}"])
+        lines.extend(["", f"{_network_icon(result.network)} {_network_label(result.network)}"])
         for item in priced_balances:
             usd_value = f"${item.get('usd_value')}"
             change = item.get("change_24h") or "n/d"
             symbol = item.get("symbol", "?")
             amount = _fmt_amount(item.get("amount", "n/d"))
             lines.extend([
-                f"**📊 {symbol} — {date_label} | {usd_value} | 24h: {change}**",
-                f"• **{amount} {symbol}**",
+                f"📊 {symbol} — {date_label} | {usd_value} | 24h: {change}",
+                f"• {amount} {symbol}",
                 "",
             ])
         for position in result.positions:
             name = position.get("name", "POSITION")
             usd_value = position.get("usd_value") or "parcial"
             change = position.get("change_24h") or "n/d"
-            size = _fmt_amount(position.get("size", "n/d"))
             pnl = position.get("unrealized_pnl_usd")
             pnl_suffix = f" | PnL: ${pnl}" if pnl and pnl != "n/d" else ""
-            opened = position.get("open_duration")
-            opened_suffix = f" | aberta há {opened}" if opened and opened != "n/d" else ""
             lines.extend([
-                f"**📊 {name} — {date_label} | ${usd_value} | 24h: {change}{pnl_suffix}**",
-                f"• **posição: {size} {name}{opened_suffix}**",
+                f"📊 {name} — {date_label} | ${usd_value} | 24h: {change}{pnl_suffix}",
+                _fmt_position_line(position),
                 "",
             ])
 
@@ -207,19 +221,19 @@ def render_daily_summary(results: Iterable[PortfolioResult]) -> str:
     if visible:
         top = max(visible, key=lambda r: _parse_usd(r.summary.get("total_usd")) or 0)
         if (_parse_usd(top.summary.get("total_usd")) or 0) > 0:
-            insights.append(f"📈 maior peso atual está em **{_network_label(top.network)}**")
+            insights.append(f"📈 maior peso atual está em {_network_label(top.network)}")
     for result in visible:
         for item in result.insights:
             if item not in insights:
                 insights.append(item)
     insights.append("⚠️ ainda faltam DeFi, staking e pricing completo em parte das redes")
 
-    lines.extend(["---", "", "## 🧠 Insights"])
+    lines.extend(["---", "", "🧠 Insights"])
     lines.extend([f"- {item}" for item in insights])
-    lines.extend(["", "---", "", "## ⚠️ Cobertura por rede"])
+    lines.extend(["", "---", "", "⚠️ Cobertura por rede"])
     for result in visible:
-        lines.append(f"- **{_network_label(result.network)}:** {result.coverage.summary}")
-    lines.extend(["", "---", "", "## 📌 Ações sugeridas"])
+        lines.append(f"- {_network_label(result.network)}: {result.coverage.summary}")
+    lines.extend(["", "---", "", "📌 Ações sugeridas"])
     actions = []
     for result in visible:
         for action in result.actions:

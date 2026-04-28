@@ -52,7 +52,18 @@ class EVMAdapter(BaseAdapter):
         "bsc": "https://bsc-rpc.publicnode.com",
         "avalanche": "https://avalanche-c-chain-rpc.publicnode.com",
     }
+    _public_rpc_fallbacks = {
+        "ethereum": ["https://ethereum-rpc.publicnode.com", "https://eth.llamarpc.com"],
+        "base": ["https://base-rpc.publicnode.com", "https://mainnet.base.org"],
+        "arbitrum": ["https://arbitrum-one-rpc.publicnode.com", "https://arb1.arbitrum.io/rpc"],
+        "optimism": ["https://optimism-rpc.publicnode.com", "https://mainnet.optimism.io"],
+        "polygon": ["https://polygon-bor-rpc.publicnode.com", "https://polygon-rpc.com"],
+        "bnb": ["https://bsc-rpc.publicnode.com", "https://bsc-dataseed.binance.org"],
+        "bsc": ["https://bsc-rpc.publicnode.com", "https://bsc-dataseed.binance.org"],
+        "avalanche": ["https://avalanche-c-chain-rpc.publicnode.com", "https://api.avax.network/ext/bc/C/rpc"],
+    }
     _blockscout = {
+        "ethereum": "https://eth.blockscout.com/api/v2/addresses/{wallet}/tokens",
         "base": "https://base.blockscout.com/api/v2/addresses/{wallet}/tokens",
         "arbitrum": "https://arbitrum.blockscout.com/api/v2/addresses/{wallet}/tokens",
         "optimism": "https://optimism.blockscout.com/api/v2/addresses/{wallet}/tokens",
@@ -215,39 +226,46 @@ class EVMAdapter(BaseAdapter):
             return []
 
     def _fetch_rpc_native_balance(self, wallet: str, network: str) -> float:
-        rpc = self._public_rpc.get(network)
-        if not rpc:
+        rpc_urls = self._public_rpc_fallbacks.get(network) or ([self._public_rpc[network]] if network in self._public_rpc else [])
+        if not rpc_urls:
             raise AdapterError(f"Sem RPC público configurado para {network}.")
         payload = {"jsonrpc": "2.0", "method": "eth_getBalance", "params": [wallet, "latest"], "id": 1}
-        try:
-            response = requests.post(rpc, json=payload, timeout=20)
-            response.raise_for_status()
-            data = response.json()
-            if data.get("error"):
-                raise AdapterError(f"Erro RPC {network}: {data['error']}")
-            raw = data.get("result")
-            return int(raw, 16) / 1e18 if raw else 0.0
-        except Exception as exc:
-            raise AdapterError(f"Falha ao consultar RPC {network}: {exc}") from exc
+        last_error: Exception | None = None
+        for rpc in rpc_urls:
+            try:
+                response = requests.post(rpc, json=payload, timeout=20)
+                response.raise_for_status()
+                data = response.json()
+                if data.get("error"):
+                    raise AdapterError(f"Erro RPC {network}: {data['error']}")
+                raw = data.get("result")
+                return int(raw, 16) / 1e18 if raw else 0.0
+            except Exception as exc:
+                last_error = exc
+                continue
+        raise AdapterError(f"Falha ao consultar RPC {network}: {last_error}")
 
     def _eth_call(self, network: str, to: str, data: str) -> str | None:
-        rpc = self._public_rpc.get(network)
-        if not rpc:
+        rpc_urls = self._public_rpc_fallbacks.get(network) or ([self._public_rpc[network]] if network in self._public_rpc else [])
+        if not rpc_urls:
             return None
-        try:
-            response = requests.post(
-                rpc,
-                json={"jsonrpc": "2.0", "method": "eth_call", "params": [{"to": to, "data": data}, "latest"], "id": 1},
-                timeout=20,
-            )
-            response.raise_for_status()
-            payload = response.json()
-            if payload.get("error"):
-                return None
-            result = payload.get("result")
-            return result if isinstance(result, str) and result.startswith("0x") else None
-        except Exception:
-            return None
+        for rpc in rpc_urls:
+            try:
+                response = requests.post(
+                    rpc,
+                    json={"jsonrpc": "2.0", "method": "eth_call", "params": [{"to": to, "data": data}, "latest"], "id": 1},
+                    timeout=20,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                if payload.get("error"):
+                    continue
+                result = payload.get("result")
+                if isinstance(result, str) and result.startswith("0x"):
+                    return result
+            except Exception:
+                continue
+        return None
 
     @staticmethod
     def _encode_address(address: str) -> str:
@@ -782,8 +800,14 @@ class EVMAdapter(BaseAdapter):
     def collect(self, wallet: str, network: str) -> PortfolioResult:
         network = network.lower()
         if network == "ethereum":
-            payload = self._fetch_ethplorer(wallet)
-            return self._build_from_ethplorer(wallet, network, payload)
+            try:
+                payload = self._fetch_ethplorer(wallet)
+                return self._build_from_ethplorer(wallet, network, payload)
+            except AdapterError:
+                # Ethplorer freekey occasionally returns 502/Bad Gateway. Fall back
+                # to the generic public-RPC + Blockscout path instead of failing
+                # the whole daily report.
+                pass
 
         native_balance = self._fetch_rpc_native_balance(wallet, network)
         native_price, native_change, native_symbol = self._get_native_price(network)

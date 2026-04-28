@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1 — 28/04/2026
+
+### Corrigido
+
+- Fallback Ethereum: quando Ethplorer falha com 502, a skill cai para RPC público + eth.blockscout.com.
+- Fallbacks de RPC por rede para reduzir impacto de 429 em Base, Arbitrum, Optimism, Polygon, BNB e Avalanche.
+- Output cron/manual sem markdown excessivo, alinhado ao padrão com emojis e linhas por ativo.
+- Posições formatadas sem duplicar o símbolo do ativo.
+- Avisos técnicos de coleta não poluem mais o output pretty por padrão; use `--show-warnings` para stderr técnico.
+
 ## 1.1.0 — 28/04/2026
 
 ### Adicionado
