@@ -10,7 +10,7 @@ from pathlib import Path
 
 from dependency_manager import ensure_runtime, runtime_status
 from first_run_setup import build_first_run_payload
-from normalizer import render_daily_summary, render_json, render_pretty, to_json_dict
+from normalizer import merge_results, render_daily_summary, render_json, render_pretty, to_json_dict
 
 
 def infer_network(wallet: str, explicit_network: str | None) -> str | None:
@@ -18,10 +18,16 @@ def infer_network(wallet: str, explicit_network: str | None) -> str | None:
         return explicit_network.strip().lower()
     raw = wallet.strip().lower()
     if raw.endswith('.eth') or raw.startswith('0x'):
-        return 'ethereum'
-    if raw.endswith('.sol') or len(raw) in range(32, 45):
+        return 'evm-multichain'
+    if raw.endswith('.sol'):
+        return 'solana'
+    if len(raw) in range(32, 45) and not raw.startswith('0x'):
         return 'solana'
     return None
+
+
+def default_single_evm_networks() -> list[str]:
+    return ["ethereum", "base", "arbitrum", "optimism", "polygon", "bnb"]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -120,6 +126,26 @@ def main() -> int:
             '{"ok": false, "reason": "Nao foi possivel detectar a rede automaticamente. Informe --network explicitamente."}'
         )
         return 2
+
+    if network == 'evm-multichain':
+        results = []
+        warnings = []
+        for evm_network in default_single_evm_networks():
+            try:
+                results.append(_collect(args.wallet, evm_network))
+            except Exception as exc:
+                warning = f'falha ao coletar {evm_network}: {exc}'
+                warnings.append(warning)
+                if args.show_warnings:
+                    print(f'Aviso: {warning}', file=sys.stderr)
+        result = merge_results(results, wallet=args.wallet)
+        if args.format == 'json':
+            payload = to_json_dict(result)
+            payload["warnings"] = warnings
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(render_pretty(result))
+        return 0 if result.ok else 1
 
     result = _collect(args.wallet, network)
     if args.format == 'json':

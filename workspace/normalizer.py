@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Iterable, List
 
-from adapters.base import PortfolioResult
+from adapters.base import Coverage, PortfolioResult
 
 
 EMOJI = {
@@ -120,6 +120,95 @@ def render_json(result: PortfolioResult) -> str:
     return json.dumps(to_json_dict(result), ensure_ascii=False, indent=2)
 
 
+def merge_results(results: Iterable[PortfolioResult], wallet: str, summary_network: str = "multichain") -> PortfolioResult:
+    collected = [r for r in results if r and r.ok]
+    if not collected:
+        return PortfolioResult(
+            ok=False,
+            network=summary_network,
+            wallet_input=wallet,
+            wallet_resolved=wallet,
+            adapter="aggregate",
+            summary={"total_usd": "0,00", "change_24h": "parcial", "stablecoin_exposure": "0%", "top_concentration": "n/d", "diversification": "baixa", "categories": []},
+            coverage=Coverage(level="low", summary="Nenhuma rede retornou dados utilizáveis."),
+            insights=["Nenhuma rede suportada retornou saldo, posição ou preço confiável nesta execução."],
+            actions=["validar se a wallet informada está correta", "se necessário, informar uma rede específica para depuração"],
+            raw={"results": []},
+        )
+
+    all_balances: List[Dict[str, Any]] = []
+    all_positions: List[Dict[str, Any]] = []
+    all_orders: List[Dict[str, Any]] = []
+    insights: List[str] = []
+    actions: List[str] = []
+    coverage_lines: List[str] = []
+    total_usd = 0.0
+    total_known = False
+    stable_usd = 0.0
+
+    for result in collected:
+        total = _parse_usd(result.summary.get("total_usd"))
+        if total is not None:
+            total_usd += total
+            total_known = True
+        for item in result.balances:
+            enriched = dict(item)
+            enriched.setdefault("network", result.network)
+            all_balances.append(enriched)
+            usd = _parse_usd(item.get("usd_value"))
+            if usd and str(item.get("category", "")).lower() == "stablecoins":
+                stable_usd += usd
+        for item in result.positions:
+            enriched = dict(item)
+            enriched.setdefault("network", result.network)
+            all_positions.append(enriched)
+        for item in result.orders:
+            enriched = dict(item)
+            enriched.setdefault("network", result.network)
+            all_orders.append(enriched)
+        for item in result.insights:
+            if item not in insights:
+                insights.append(item)
+        for item in result.actions:
+            if item not in actions:
+                actions.append(item)
+        coverage_lines.append(f"{_network_label(result.network)}: {result.coverage.summary}")
+
+    stable_pct = f"{(stable_usd / total_usd * 100):.1f}%" if total_usd > 0 else "0%"
+    categories = sorted({str(item.get("category")) for item in all_balances if item.get("category")})
+    network_labels = [_network_label(r.network) for r in collected]
+    if len(network_labels) > 1:
+        insights.insert(0, f"🌐 Varredura multi-chain concluída em {', '.join(network_labels)}.")
+
+    return PortfolioResult(
+        ok=True,
+        network=summary_network,
+        wallet_input=wallet,
+        wallet_resolved=wallet,
+        adapter="aggregate",
+        summary={
+            "total_usd": _fmt_usd(total_usd if total_known else None),
+            "change_24h": "parcial",
+            "stablecoin_exposure": stable_pct,
+            "top_concentration": "parcial",
+            "diversification": "alta" if len(all_balances) > 10 else "média" if len(all_balances) > 3 else "baixa",
+            "categories": categories,
+        },
+        balances=all_balances,
+        positions=all_positions,
+        orders=all_orders,
+        insights=insights,
+        actions=actions or ["validar cobertura por rede antes de usar o total como verdade absoluta"],
+        coverage=Coverage(
+            level="medium" if collected else "low",
+            summary=" | ".join(coverage_lines) if coverage_lines else "Cobertura parcial multi-chain.",
+            sources=[source for result in collected for source in result.coverage.sources],
+            limits=[limit for result in collected for limit in result.coverage.limits],
+        ),
+        raw={"results": [to_json_dict(r) for r in collected]},
+    )
+
+
 def _parse_usd(raw: Any) -> float | None:
     if raw in {None, "n/d", "parcial", "USD parcial"}:
         return None
@@ -196,6 +285,7 @@ def _network_label(network: str) -> str:
         "bsc": "BNB Chain",
         "solana": "Solana",
         "hyperliquid": "Hyperliquid",
+        "multichain": "Multi-chain",
     }
     return labels.get(network.lower(), network.title())
 
