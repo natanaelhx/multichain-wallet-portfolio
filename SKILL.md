@@ -20,6 +20,7 @@ A skill é **somente leitura**: não assina transações, não conecta wallet, n
 
 Use quando o usuário pedir:
 
+- `/wallet`
 - saldo ou resumo de uma wallet
 - portfolio multi-chain em USD
 - tokens ERC-20/SPL com valor confiável
@@ -28,6 +29,7 @@ Use quando o usuário pedir:
 - equity, posições, ordens abertas ou PnL em Hyperliquid
 - relatório manual ou saída pronta para cron diário
 - exposição, stablecoins, concentração, variação 24h ou insights curtos
+- frases como `analisa minha wallet`, `mostra meu portfolio`, `quero ver minha carteira`, `wallet`, `portfolio wallet`
 
 ## Como Funciona
 
@@ -102,6 +104,17 @@ Quando faltar contexto, siga o onboarding MQC:
 Exemplo:
 
 > Vou ler a wallet em modo somente leitura, consolidar redes suportadas, filtrar spam e devolver um relatório em USD com cobertura explícita. 🔎 Qual wallet você quer analisar?
+
+## Gatilho Slash
+
+A skill deve ser reconhecida de forma forte quando o usuário enviar:
+
+- `/wallet`
+- `wallet`
+- `/wallet <endereco>`
+- `analisa wallet`
+
+Quando o usuário enviar apenas `/wallet`, o comportamento esperado é abrir imediatamente o first run operacional e perguntar pela wallet.
 
 ## Formato de Resposta
 
