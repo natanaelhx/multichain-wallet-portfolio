@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.2 — 28/04/2026
+
+### Corrigido
+
+- Adicionado bootstrap operacional de runtime Python local em `workspace/.venv` para evitar falha por PEP 668 / `externally-managed-environment`.
+- Adicionado `dependency_manager.py` com `--runtime-status`, `--no-bootstrap` e preparação automática do `requirements.txt` no primeiro uso real.
+- Adicionado `requests_compat.py` como fallback HTTP stdlib quando `requests`, `pip` ou `ensurepip` não estiverem disponíveis no container.
+- `registry.py` passou a ser importado de forma lazy pelo executor, evitando crash antes do bootstrap quando dependências externas faltam.
+- `first-run` agora inclui status do runtime/dependências no payload JSON.
+
+### Validação
+
+- `python3 -m compileall -q workspace`
+- `python3 run.py --runtime-status`
+- `python3 run.py --first-run --format json | python3 -m json.tool`
+- `python3 run.py --no-bootstrap --wallet 0x0000000000000000000000000000000000000000 --network base --format json | python3 -m json.tool`
+- `python3 run.py --no-bootstrap --mode daily --format pretty`
+
 ## 1.1.1 — 28/04/2026
 
 ### Corrigido

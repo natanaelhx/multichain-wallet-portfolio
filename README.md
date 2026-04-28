@@ -87,11 +87,29 @@ Regras:
 - deve ficar em env/secret manager do runtime MQC;
 - se ausente, o fluxo principal continua 0-key.
 
+## Runtime e Dependências
+
+A skill usa Python 3 e `requests>=2.31.0` quando disponível.
+
+Para ambientes PEP 668 / `externally-managed-environment`, o executor agora prepara automaticamente um runtime local em `workspace/.venv` no primeiro uso real e instala `workspace/requirements.txt` nesse venv.
+
+Se o container estiver minimalista e não tiver `ensurepip`/`pip`, a skill não quebra por causa disso: ela segue com um fallback HTTP baseado na stdlib para cobrir as chamadas públicas usadas pelos adapters.
+
+Comandos úteis:
+
+```bash
+cd workspace
+python3 run.py --runtime-status
+python3 run.py --first-run --format json
+python3 run.py --no-bootstrap --help
+```
+
 ## Uso Local
 
 ```bash
 cd workspace
 python3 run.py --help
+python3 run.py --first-run --format json
 python3 run.py --wallet 0x0000000000000000000000000000000000000000 --network base --format pretty
 python3 run.py --wallet exemplo.sol --network solana --format pretty
 python3 run.py --wallet 0x0000000000000000000000000000000000000000 --network hyperliquid --format json
@@ -126,23 +144,23 @@ Modelo seguro:
 Formato textual unificado:
 
 ```text
-# 💼 Portfólio — DD/MM
+💼 Portfólio — DD/MM
 
 💰 Total estimado: $VALOR
 📈 Variação total 24h: parcial
 ⚠️ Cobertura: média
 
-### ◈ Ethereum
+◈ Ethereum
 📊 ATIVO — DD/MM | $VALOR | 24h: +/-X%
 • QUANTIDADE ATIVO
 
-## 🧠 Insights
+🧠 Insights
 - insight objetivo
 
-## ⚠️ Cobertura por rede
+⚠️ Cobertura por rede
 - Rede: fontes e limites
 
-## 📌 Ações sugeridas
+📌 Ações sugeridas
 - ação objetiva
 ```
 
@@ -158,8 +176,10 @@ multichain-wallet-portfolio/
 ├── resources/
 └── workspace/
     ├── run.py
+    ├── dependency_manager.py
     ├── normalizer.py
     ├── registry.py
+    ├── requests_compat.py
     ├── token_filters.py
     ├── adapters/
     │   ├── base.py
@@ -174,7 +194,10 @@ multichain-wallet-portfolio/
 ```bash
 python3 -m json.tool skill.json >/dev/null
 python3 -m compileall -q workspace
-cd workspace && python3 run.py --help
+(cd workspace && python3 run.py --help)
+(cd workspace && python3 run.py --runtime-status)
+(cd workspace && python3 run.py --first-run --format json | python3 -m json.tool >/dev/null)
+(cd workspace && python3 run.py --mode daily --format pretty)
 ```
 
 ## Segurança

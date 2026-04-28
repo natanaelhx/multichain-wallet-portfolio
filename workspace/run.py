@@ -8,9 +8,9 @@ import json
 import sys
 from pathlib import Path
 
+from dependency_manager import ensure_runtime, runtime_status
 from first_run_setup import build_first_run_payload
 from normalizer import render_daily_summary, render_json, render_pretty, to_json_dict
-from registry import resolve_adapter
 
 
 def infer_network(wallet: str, explicit_network: str | None) -> str | None:
@@ -35,6 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--networks', default='ethereum,base,arbitrum,optimism,polygon,bnb,solana,hyperliquid')
     parser.add_argument('--format', choices=['pretty', 'json'], default='pretty')
     parser.add_argument('--first-run', action='store_true')
+    parser.add_argument('--runtime-status', action='store_true', help='Mostra status do venv/dependências da skill.')
+    parser.add_argument('--no-bootstrap', action='store_true', help='Desativa criação automática do venv local nesta execução.')
     parser.add_argument('--show-warnings', action='store_true', help='Mostra avisos técnicos de coleta em stderr.')
     return parser
 
@@ -51,6 +53,8 @@ def _load_wallets_file(path: str | None) -> dict:
 
 
 def _collect(wallet: str, network: str):
+    from registry import resolve_adapter
+
     adapter = resolve_adapter(network)
     if not adapter:
         raise SystemExit(f'Rede sem adapter operacional nesta v1 inicial: {network}')
@@ -70,10 +74,20 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.runtime_status:
+        print(json.dumps(runtime_status(), ensure_ascii=False, indent=2))
+        return 0
+
     if args.first_run:
+        if not args.no_bootstrap:
+            ensure_runtime()
         payload = build_first_run_payload(wallet=args.wallet, network=args.network)
+        payload["runtime"] = runtime_status()
         print(render_json_dict(payload=args.format, payload_data=payload))
         return 0
+
+    if not args.no_bootstrap:
+        ensure_runtime()
 
     if args.mode == 'daily':
         config = _load_wallets_file(args.wallets_file)

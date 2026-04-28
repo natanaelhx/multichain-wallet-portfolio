@@ -4,6 +4,7 @@ from __future__ import annotations
 def explain_workflow() -> list[str]:
     return [
         "Explicar rapidamente que a skill faz leitura de portfolio e nao move fundos.",
+        "Preparar automaticamente o venv local da skill quando o runtime ainda nao tiver as dependencias.",
         "Confirmar wallet e rede, ou autodetectar quando possivel.",
         "Coletar dados pelos adapters de EVM, Solana ou Hyperliquid.",
         "Consolidar USD, variacao 24h, concentracao, categorias e cobertura.",

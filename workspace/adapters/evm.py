@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List
 
-import requests
+from requests_compat import requests
 
 from adapters.base import AdapterError, BaseAdapter, Coverage, PortfolioResult
 from token_filters import audit_payload, classify_token

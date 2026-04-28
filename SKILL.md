@@ -33,8 +33,10 @@ Use quando o usuário pedir:
 
 1. Identifica a wallet e a rede.
 2. Se a rede não vier explícita, tenta inferir.
-3. Quando houver ambiguidade, pergunta uma coisa por vez.
-4. Coleta dados por adaptadores:
+3. No primeiro uso real, prepara automaticamente `workspace/.venv` quando dependências Python não existirem no runtime.
+4. Se o container não tiver `ensurepip`/`pip`, usa fallback HTTP stdlib para não quebrar só por falta de `requests`.
+5. Quando houver ambiguidade, pergunta uma coisa por vez.
+6. Coleta dados por adaptadores:
    - EVM: Ethereum, Base, Arbitrum, Optimism, Polygon, BNB/BSC, Avalanche e redes compatíveis mapeadas.
    - Solana: SOL, SPL tokens e staking nativo best-effort.
    - Hyperliquid: equity, posições, ordens abertas e PnL via API pública.
@@ -58,6 +60,15 @@ Fontes públicas usadas quando disponíveis:
 - contratos públicos Aave V3
 - contratos Comet Compound V3
 - Uniswap V3 NonfungiblePositionManager + NFTs via Blockscout
+
+## Runtime Operacional
+
+- O executor principal é `workspace/run.py`.
+- Use `python3 run.py --first-run --format json` para validar o onboarding e preparar dependências.
+- Use `python3 run.py --runtime-status` para auditar venv/dependências.
+- `requests>=2.31.0` está em `workspace/requirements.txt` e é instalado no venv local quando possível.
+- Em runtime sem pip/ensurepip, `requests_compat.py` cobre as chamadas HTTP públicas com stdlib como fallback.
+- Não instalar pacotes no Python do sistema; evitar PEP 668 usando venv local ou fallback embutido.
 
 ## Providers Opcionais
 
@@ -96,23 +107,23 @@ Exemplo:
 A saída textual principal deve seguir o padrão cron/manual unificado:
 
 ```text
-# 💼 Portfólio — DD/MM
+💼 Portfólio — DD/MM
 
 💰 Total estimado: $VALOR
 📈 Variação total 24h: parcial
 ⚠️ Cobertura: baixa/média/alta
 
-### ◈ Ethereum
+◈ Ethereum
 📊 ATIVO — DD/MM | $VALOR | 24h: +/-X%
 • QUANTIDADE ATIVO
 
-## 🧠 Insights
+🧠 Insights
 - insight curto
 
-## ⚠️ Cobertura por rede
+⚠️ Cobertura por rede
 - Rede: fonte e limites
 
-## 📌 Ações sugeridas
+📌 Ações sugeridas
 - ação objetiva, se houver
 ```
 
