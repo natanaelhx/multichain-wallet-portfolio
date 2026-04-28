@@ -1,65 +1,166 @@
 # multichain-wallet-portfolio
 
-> Skill MQC operacional para consolidar portfolio de uma wallet em EVM, Solana e Hyperliquid com saída executiva em USD, variação 24h e cobertura explícita.
+> Skill MQC/OpenClaw para consolidar o portfolio de uma wallet em EVM, Solana e Hyperliquid com saída textual executiva em USD, variação 24h quando disponível e cobertura explícita.
 
-## O que faz
+## Visão Geral
 
-- consolida **1 wallet por execução**
-- cobre **EVM + Solana + Hyperliquid**
-- tenta detectar a rede e aceita rede explícita
-- retorna **resumo executivo + blocos detalhados**
-- prioriza **USD** quando houver preço
-- tenta calcular **variação 24h** por carteira, ativo e posição quando houver suporte
-- destaca **stablecoins**, **concentração**, **categorias principais** e **diversificação simples**
-- traz **insights curtos** e **ações sugeridas** só quando houver motivo claro
+A skill roda em modo **somente leitura**. Ela não assina transações, não conecta wallet, não move fundos e não pede seed/private key.
 
-## Status da v1
+Objetivo principal: entregar um relatório limpo, pronto para uso manual ou cron, com dados confiáveis e sem poluir o resumo com spam/dust/scam tokens.
 
-Esta v1 nasce como **base operacional honesta**:
-- com executor real em Python
-- com adaptadores separados
-- com fallback entre fontes públicas
-- sem prometer cobertura mágica onde ainda não houver fonte suficiente
+## O Que Faz
 
-## Cobertura alvo da v1
+- Consolida **1 wallet por execução**.
+- Suporta **EVM + Solana + Hyperliquid**.
+- Aceita rede explícita e tenta inferir quando possível.
+- Prioriza valores em **USD** quando houver preço confiável.
+- Usa o mesmo formato final para análise manual e cron diário.
+- Filtra tokens suspeitos, claims, links, airdrops/scams, ativos sem preço confiável e valores irrelevantes.
+- Mantém auditoria raw para itens ocultados quando usado em JSON.
+- Traz insights curtos e ações sugeridas apenas quando houver motivo claro.
+
+## Cobertura
 
 ### EVM
-- redes EVM por **catálogo configurável**
-- começa com principais redes públicas
-- expansão fácil por configuração
+
+Fontes públicas/0-key:
+
+- saldo nativo via RPC público
+- ERC-20 via Blockscout público quando disponível
+- preço/liquidez via Dexscreener, CoinGecko e DefiLlama quando disponíveis
+- Aave V3 via contratos públicos
+- Compound V3 via contratos Comet públicos
+- Uniswap V3 LP com detecção de NFTs de posição via Blockscout + `positions(tokenId)`
+
+Redes mapeadas incluem Ethereum, Base, Arbitrum, Optimism, Polygon, BNB/BSC e Avalanche, com cobertura variando por fonte pública disponível.
 
 ### Solana
+
 - SOL
-- SPL tokens
-- staking quando visível
-- posições DeFi quando a fonte permitir
+- SPL tokens com metadata/preço via Jupiter Lite e fallback CoinGecko quando disponível
+- staking nativo SOL best-effort via RPC público
+- DeFi Solana indexado ainda depende de provider confiável; a skill não inventa posições
 
 ### Hyperliquid
+
 - equity
-- posições
+- spot confiável
+- posições abertas
 - ordens abertas
+- mark price
+- PnL não realizado
+- PnL por períodos quando inferível por endpoints públicos
+- funding agregado quando disponível
+
+## DeFi e Staking
+
+### 0 API Keys Obrigatórias
+
+O fluxo principal foi desenhado para funcionar com **0 API keys obrigatórias**.
+
+| Área | Status | Fonte |
+|---|---:|---|
+| Aave V3 | ativo | contratos públicos + RPC |
+| Compound V3 | ativo | contratos Comet + RPC |
+| Uniswap V3 LP | detecção ativa | Blockscout NFT + Position Manager |
+| Solana staking | best-effort | RPC público |
+| DeBank | opcional | `DEBANK_ACCESS_KEY` ou `DEBANK_API_KEY` |
+
+### Limite Intencional do Uniswap V3 LP
+
+A skill detecta NFTs de liquidez Uniswap V3 e decodifica a posição, mas **não soma valuation da liquidez ao total** enquanto o cálculo exato por pool, tick, preço atual e liquidez não estiver implementado. Isso evita relatório com número falso.
+
+## Providers Opcionais
+
+DeBank Pro pode ser usado como fonte extra/premium de DeFi EVM:
+
+```bash
+export DEBANK_ACCESS_KEY="..."
+# ou
+export DEBANK_API_KEY="..."
+```
+
+Regras:
+
+- não é obrigatório;
+- não deve ser salvo no Git;
+- deve ficar em env/secret manager do runtime MQC;
+- se ausente, o fluxo principal continua 0-key.
+
+## Uso Local
+
+```bash
+cd workspace
+python3 run.py --help
+python3 run.py --wallet 0x0000000000000000000000000000000000000000 --network base --format pretty
+python3 run.py --wallet exemplo.sol --network solana --format pretty
+python3 run.py --wallet 0x0000000000000000000000000000000000000000 --network hyperliquid --format json
+```
+
+Modo diário com arquivo local fora do Git:
+
+```bash
+python3 run.py --mode daily --wallets-file /caminho/seguro/wallets.json --format pretty
+```
+
+Modelo seguro:
+
+```json
+{
+  "wallets": {
+    "evm": "",
+    "ethereum": "",
+    "base": "",
+    "arbitrum": "",
+    "optimism": "",
+    "polygon": "",
+    "bnb": "",
+    "solana": "",
+    "hyperliquid": ""
+  }
+}
+```
+
+## Formato de Saída
+
+Formato textual unificado:
+
+```text
+# 💼 Portfólio — DD/MM
+
+💰 Total estimado: $VALOR
+📈 Variação total 24h: parcial
+⚠️ Cobertura: média
+
+### ◈ Ethereum
+📊 ATIVO — DD/MM | $VALOR | 24h: +/-X%
+• QUANTIDADE ATIVO
+
+## 🧠 Insights
+- insight objetivo
+
+## ⚠️ Cobertura por rede
+- Rede: fontes e limites
+
+## 📌 Ações sugeridas
+- ação objetiva
+```
 
 ## Estrutura
 
 ```text
-repo/
+multichain-wallet-portfolio/
 ├── SKILL.md
 ├── skill.json
 ├── README.md
 ├── LICENSE
-├── PRD.html
-├── multichain-wallet-portfolio-prd.html
-├── .gitignore
 ├── assets/
-│   └── myquickclaw-brand.jpg
 ├── resources/
-│   └── architecture-notes.md
 └── workspace/
     ├── run.py
     ├── normalizer.py
     ├── registry.py
-    ├── first_run_setup.py
-    ├── requirements.txt
+    ├── token_filters.py
     ├── adapters/
     │   ├── base.py
     │   ├── evm.py
@@ -68,29 +169,24 @@ repo/
     └── examples/
 ```
 
-## Uso local
+## Validação
 
 ```bash
-cd workspace
-python3 run.py --wallet vitalik.eth --network ethereum --format pretty
-python3 run.py --wallet 0x000000000000000000000000000000000000dead --network base --format json
-python3 run.py --wallet somewallet.sol --network solana --format pretty
-python3 run.py --wallet 0xabc123 --network hyperliquid --format json
+python3 -m json.tool skill.json >/dev/null
+python3 -m compileall -q workspace
+cd workspace && python3 run.py --help
 ```
 
-## Observações importantes
+## Segurança
 
-- a v1 é **somente leitura**
-- não assina, não move fundos, não conecta wallet
-- sem API key por padrão
-- providers opcionais podem ser adicionados depois sem quebrar a arquitetura
-- CEX tradicional fica fora desta v1
+- Nunca coloque wallets reais privadas em `workspace/examples/`.
+- Nunca commite `.env`, chaves, tokens, cookies, seeds ou private keys.
+- Use env/secret manager para credenciais opcionais.
+- A skill deve preferir dados públicos e declarar cobertura parcial quando a fonte não for suficiente.
 
 ## Changelog
 
-| Versão | Data | Mudança |
-|--------|------|---------|
-| 1.0.0 | 27/04/2026 | Base inicial da skill `multichain-wallet-portfolio` com estrutura MQC completa, PRD inicial e executor Python com adaptadores EVM, Solana e Hyperliquid |
+Consulte [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Licença
 

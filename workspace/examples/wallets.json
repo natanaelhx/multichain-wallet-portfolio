@@ -1,7 +1,14 @@
 {
+  "_note": "Template seguro: preencha com wallets reais apenas em config local fora do Git. Valores vazios são ignorados pelo modo daily.",
   "wallets": {
-    "evm": "0x0000000000000000000000000000000000000000",
-    "solana": "11111111111111111111111111111111",
-    "hyperliquid": "0x0000000000000000000000000000000000000000"
+    "evm": "",
+    "ethereum": "",
+    "base": "",
+    "arbitrum": "",
+    "optimism": "",
+    "polygon": "",
+    "bnb": "",
+    "solana": "",
+    "hyperliquid": ""
   }
 }

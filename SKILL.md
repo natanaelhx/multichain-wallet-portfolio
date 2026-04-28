@@ -1,108 +1,137 @@
 ---
 name: multichain-wallet-portfolio
 description: >
-  Consolida portfolio de uma wallet por execução em múltiplas redes. Ative esta
-  skill quando o usuário pedir snapshot de wallet, saldo total, tokens, posições,
-  ordens abertas, exposição, stablecoins, concentração, variação de 24h ou visão
-  consolidada em EVM, Solana ou Hyperliquid. A skill tenta detectar a rede,
-  aceita rede explícita, responde em PT-BR com resumo executivo e blocos
-  detalhados, e retorna cobertura/confiança de forma transparente. Use fontes
-  públicas por padrão e providers opcionais só quando existirem. Keywords:
-  wallet portfolio, multichain, evm, solana, hyperliquid, holdings, balances,
-  tokens, positions, 24h change, exposure, stablecoins
+  Consolida portfolio de uma wallet por execução em EVM, Solana e Hyperliquid.
+  Use quando o usuário pedir saldo, snapshot, tokens, posições DeFi/staking,
+  ordens abertas, PnL, exposição, stablecoins, concentração ou resumo diário de
+  carteira. Opera em modo somente leitura, prioriza fontes públicas/0-key e
+  sinaliza cobertura parcial sem inventar dados. Keywords: wallet portfolio,
+  multichain, evm, solana, hyperliquid, defi, staking, aave, compound, uniswap,
+  balances, holdings, positions, pnl, exposure, 24h change
 ---
 
 # Multichain Wallet Portfolio
 
-Skill operacional para leitura de **portfolio por wallet** em **EVM, Solana e Hyperliquid**.
+Skill MQC/OpenClaw para gerar snapshot textual de portfolio de **uma wallet por execução** em **EVM, Solana e Hyperliquid**.
 
-## Quando usar
+A skill é **somente leitura**: não assina transações, não conecta wallet, não move fundos e não executa operações financeiras.
 
-- O usuário quer ver **saldo**, **tokens** ou **posições** de uma wallet
-- O usuário quer um **snapshot multi-chain** com foco em **USD**
-- O usuário quer **variação das últimas 24h** quando houver dado disponível
-- O usuário quer ver **concentração**, **stablecoins**, **categorias** e **insights curtos**
-- O usuário quer checar **ordens abertas e posições** em **Hyperliquid**
-- O usuário quer analisar uma wallet de **Ethereum/EVM**, **Solana** ou **Hyperliquid**
+## Quando Usar
 
-## Workflow obrigatório
+Use quando o usuário pedir:
 
-1. **Explique rapidamente o que a skill faz** antes da primeira pergunta: leitura de portfolio, sem assinar transação, sem mover fundos e em modo somente leitura.
-2. **Explique o fluxo completo**: identificar wallet/rede, coletar dados por adaptadores, consolidar o resultado, sinalizar cobertura e devolver resumo objetivo.
-3. **Faça uma pergunta por vez** quando faltar contexto.
-4. **Explique o motivo da pergunta** antes de fazê-la.
-5. **Use emoji nas perguntas**.
-6. Se a rede não vier explícita:
-   - tente detectar automaticamente
-   - se houver ambiguidade material, pergunte ao usuário
-7. Se alguma fonte só permitir **cobertura parcial**, devolva o que conseguiu com transparência.
-8. Se houver alias/domínio resolvível, tente resolver primeiro; se falhar, avise claramente.
+- saldo ou resumo de uma wallet
+- portfolio multi-chain em USD
+- tokens ERC-20/SPL com valor confiável
+- staking Solana nativo
+- posições DeFi EVM, especialmente Aave V3, Compound V3 e Uniswap V3 LP
+- equity, posições, ordens abertas ou PnL em Hyperliquid
+- relatório manual ou saída pronta para cron diário
+- exposição, stablecoins, concentração, variação 24h ou insights curtos
 
-## Regras de operação
+## Como Funciona
 
-- **1 wallet por execução** na v1
-- Priorizar **USD** na resposta textual
-- Tentar obter **variação 24h** para:
-  - carteira total
-  - ativos
-  - posições
-  quando a fonte permitir
-- Tentar múltiplas fontes antes de assumir retorno parcial
-- Expor sempre:
-  - fonte usada
-  - cobertura obtida
-  - limites/lacunas
-- **NFTs são opcionais** e ficam fora do resumo principal
-- **CEX tradicional fica fora da v1**; Hyperliquid tem trilha própria
-- Não inventar preço, posição, PnL ou histórico quando a fonte não suportar
+1. Identifica a wallet e a rede.
+2. Se a rede não vier explícita, tenta inferir.
+3. Quando houver ambiguidade, pergunta uma coisa por vez.
+4. Coleta dados por adaptadores:
+   - EVM: Ethereum, Base, Arbitrum, Optimism, Polygon, BNB/BSC, Avalanche e redes compatíveis mapeadas.
+   - Solana: SOL, SPL tokens e staking nativo best-effort.
+   - Hyperliquid: equity, posições, ordens abertas e PnL via API pública.
+5. Filtra spam/dust/scam tokens do output principal.
+6. Mantém ativos ocultados em auditoria raw quando o executor retornar JSON.
+7. Renderiza relatório textual único, usado tanto no fluxo manual quanto em cron.
 
-## Saída esperada
+## Cobertura 0-Key
 
-- **Resumo executivo** com emoji
-- **Blocos detalhados** por categoria
-- **Valores em USD** quando disponíveis
-- **Variação 24h** quando disponível
-- **Score simples de diversificação**: baixa / média / alta
-- **Insights curtos e conservadores**
-- **Ações sugeridas** só quando houver motivo claro
-- **Cobertura parcial no topo** apenas se impactar materialmente o resultado
+A skill deve funcionar sem API key obrigatória.
 
-## Trilhas da v1
+Fontes públicas usadas quando disponíveis:
 
-### EVM
-- Catálogo de redes aberto por configuração
-- Começa com redes EVM principais, mas sem lista rígida no prompt
-- Autodetecta quando possível; pergunta se ficar ambíguo
+- RPC público EVM
+- RPC público Solana
+- Hyperliquid API pública
+- Blockscout público
+- Dexscreener público
+- CoinGecko/DefiLlama públicos
+- Jupiter Lite API
+- contratos públicos Aave V3
+- contratos Comet Compound V3
+- Uniswap V3 NonfungiblePositionManager + NFTs via Blockscout
 
-### Solana
-- SOL
-- SPL tokens
-- staking quando visível
-- posições DeFi quando disponíveis
+## Providers Opcionais
 
-### Hyperliquid
-- equity / saldo
-- posições
-- ordens abertas
+- `DEBANK_ACCESS_KEY` ou `DEBANK_API_KEY` ativa DeBank Pro como fonte extra/premium de DeFi EVM.
+- A skill nunca deve exigir DeBank para o fluxo principal.
+- Se a chave não existir, não chame DeBank e não invente posições.
+- Nunca salve chaves, wallets reais privadas ou arquivos `.env` no Git.
 
-## Formato de resposta
+## Regras de Segurança e Qualidade
 
-- **Idioma:** PT-BR
-- **Tom:** direto e técnico
-- **Estrutura padrão:**
-  - Resumo executivo
-  - Cobertura / confiança
-  - Saldos e ativos
-  - Posições
-  - Insights
-  - Próximo passo sugerido (se houver)
+- **SEMPRE** explicar que é leitura de dados, não execução de transações.
+- **SEMPRE** responder em PT-BR.
+- **SEMPRE** sinalizar fontes, cobertura e lacunas materiais.
+- **SEMPRE** ocultar do output principal tokens suspeitos, links/claims/airdrops/scams, ativos sem preço confiável ou valor abaixo do limite operacional.
+- **SEMPRE** preservar dados filtrados no raw audit quando o modo JSON for usado.
+- **NUNCA** inventar preço, PnL, valuation DeFi ou histórico.
+- **NUNCA** somar Uniswap V3 LP ao total enquanto a valuation exata por pool/tick/liquidez não estiver implementada.
+- **NUNCA** misturar CEX tradicional com cobertura onchain; Hyperliquid tem trilha própria.
+- **NUNCA** pedir ou registrar seed phrase, private key, mnemonic ou segredo.
 
-## Regras finais
+## Perguntas ao Usuário
 
-- **SEMPRE** dizer que é leitura de dados, não execução de transações
-- **SEMPRE** fazer uma pergunta por vez quando faltar contexto
-- **SEMPRE** usar emoji nas perguntas
-- **SEMPRE** sinalizar cobertura e lacunas reais
-- **NUNCA** afirmar “todas as redes” sem base operacional real
-- **NUNCA** inventar preço em USD se a fonte não trouxer dado confiável
-- **NUNCA** misturar dados onchain com exchange/CEX na v1 como se fossem a mesma cobertura
+Quando faltar contexto, siga o onboarding MQC:
+
+1. explique rapidamente o fluxo completo;
+2. faça **uma pergunta por vez**;
+3. use emoji na pergunta;
+4. permita uma ou mais opções quando oferecer escolhas.
+
+Exemplo:
+
+> Vou ler a wallet em modo somente leitura, consolidar redes suportadas, filtrar spam e devolver um relatório em USD com cobertura explícita. 🔎 Qual wallet você quer analisar?
+
+## Formato de Resposta
+
+A saída textual principal deve seguir o padrão cron/manual unificado:
+
+```text
+# 💼 Portfólio — DD/MM
+
+💰 Total estimado: $VALOR
+📈 Variação total 24h: parcial
+⚠️ Cobertura: baixa/média/alta
+
+### ◈ Ethereum
+📊 ATIVO — DD/MM | $VALOR | 24h: +/-X%
+• QUANTIDADE ATIVO
+
+## 🧠 Insights
+- insight curto
+
+## ⚠️ Cobertura por rede
+- Rede: fonte e limites
+
+## 📌 Ações sugeridas
+- ação objetiva, se houver
+```
+
+## Exemplos
+
+### Snapshot EVM
+
+**Usuário:** `analisa 0xabc... na Base`
+
+**Resposta esperada:** relatório textual com saldo nativo, tokens confiáveis, DeFi 0-key detectado, cobertura e limites.
+
+### Cron diário
+
+**Usuário:** `gera resumo diário das minhas wallets`
+
+**Resposta esperada:** mesma estrutura do modo manual, sem blocos extras incompatíveis.
+
+### DeFi sem fonte confiável
+
+**Usuário:** `mostra minhas posições DeFi Solana`
+
+**Resposta esperada:** retornar staking nativo quando disponível e explicar que DeFi Solana indexado exige provider confiável; não inventar posições.

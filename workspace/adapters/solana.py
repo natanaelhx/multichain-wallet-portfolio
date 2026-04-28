@@ -14,6 +14,9 @@ class SolanaAdapter(BaseAdapter):
     _coingecko_price_url = "https://api.coingecko.com/api/v3/simple/price"
     _coingecko_token_url = "https://api.coingecko.com/api/v3/simple/token_price/solana"
     _defillama_sol_price_url = "https://coins.llama.fi/prices/current/coingecko:solana"
+    _jupiter_price_url = "https://lite-api.jup.ag/price/v3"
+    _jupiter_token_search_url = "https://lite-api.jup.ag/tokens/v2/search"
+    _stake_program_id = "Stake11111111111111111111111111111111111111"
 
     def supports(self, network: str) -> bool:
         return network.strip().lower() == "solana"
@@ -29,6 +32,65 @@ class SolanaAdapter(BaseAdapter):
             return data.get("result") or {}
         except Exception as exc:
             raise AdapterError(f"Falha ao consultar RPC Solana: {exc}") from exc
+
+    def _stake_accounts_for_authority(self, wallet: str) -> List[Dict[str, Any]]:
+        # Stake account layout stores authorized staker at offset 12 and
+        # authorized withdrawer at offset 44. Query both because wallets often
+        # appear as one or the other. Public RPCs may reject getProgramAccounts;
+        # in that case this remains a best-effort empty result.
+        accounts_by_pubkey: Dict[str, Dict[str, Any]] = {}
+        for offset in (12, 44):
+            try:
+                result = self._rpc(
+                    "getProgramAccounts",
+                    [
+                        self._stake_program_id,
+                        {
+                            "encoding": "jsonParsed",
+                            "filters": [
+                                {"dataSize": 200},
+                                {"memcmp": {"offset": offset, "bytes": wallet}},
+                            ],
+                        },
+                    ],
+                )
+            except Exception:
+                continue
+            for item in result if isinstance(result, list) else []:
+                pubkey = item.get("pubkey")
+                if pubkey:
+                    accounts_by_pubkey[pubkey] = item
+        return list(accounts_by_pubkey.values())
+
+    def _stake_positions(self, wallet: str, sol_price: float | None, sol_change: float | None) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        positions: List[Dict[str, Any]] = []
+        raw_accounts = self._stake_accounts_for_authority(wallet)
+        total_sol = 0.0
+        for item in raw_accounts:
+            account = item.get("account") if isinstance(item.get("account"), dict) else {}
+            lamports = account.get("lamports") or 0
+            parsed = (((account.get("data") or {}).get("parsed") or {}).get("info") or {}) if isinstance(account.get("data"), dict) else {}
+            stake = parsed.get("stake") if isinstance(parsed.get("stake"), dict) else {}
+            delegation = stake.get("delegation") if isinstance(stake.get("delegation"), dict) else {}
+            voter = delegation.get("voter") or "n/d"
+            activation_epoch = delegation.get("activationEpoch") or "n/d"
+            sol_amount = lamports / 1_000_000_000
+            if sol_amount <= 0:
+                continue
+            total_sol += sol_amount
+            positions.append(
+                {
+                    "name": "SOL staking",
+                    "size": round(sol_amount, 8),
+                    "usd_value": self._fmt_usd(sol_amount * sol_price) if sol_price else "n/d",
+                    "change_24h": f"{sol_change:.2f}%" if sol_change is not None else "n/d",
+                    "stake_account": item.get("pubkey"),
+                    "validator_vote": voter,
+                    "activation_epoch": activation_epoch,
+                    "category": "staking",
+                }
+            )
+        return positions, {"stake_accounts": raw_accounts, "stake_total_sol": total_sol}
 
     def _get_sol_price(self) -> tuple[float | None, float | None]:
         try:
@@ -70,6 +132,41 @@ class SolanaAdapter(BaseAdapter):
         except Exception:
             return None, None
 
+    def _get_jupiter_prices(self, mints: List[str]) -> Dict[str, tuple[float | None, float | None]]:
+        if not mints:
+            return {}
+        try:
+            response = requests.get(
+                self._jupiter_price_url,
+                params={"ids": ",".join(mints[:100])},
+                timeout=20,
+            )
+            response.raise_for_status()
+            data = response.json() or {}
+            prices: Dict[str, tuple[float | None, float | None]] = {}
+            for mint in mints:
+                item = data.get(mint) or {}
+                prices[mint] = (item.get("usdPrice"), item.get("priceChange24h"))
+            return prices
+        except Exception:
+            return {}
+
+    def _get_jupiter_token_metadata(self, mint: str) -> Dict[str, Any]:
+        try:
+            response = requests.get(
+                self._jupiter_token_search_url,
+                params={"query": mint},
+                timeout=15,
+            )
+            response.raise_for_status()
+            data = response.json() or []
+            for item in data:
+                if isinstance(item, dict) and item.get("id") == mint:
+                    return item
+        except Exception:
+            pass
+        return {}
+
     @staticmethod
     def _fmt_usd(value: float | None) -> str:
         if value is None:
@@ -91,7 +188,14 @@ class SolanaAdapter(BaseAdapter):
 
         sol_balance = (balance_result.get("value") or 0) / 1_000_000_000
         sol_price, sol_change = self._get_sol_price()
+        staking_positions, staking_raw = self._stake_positions(wallet, sol_price, sol_change)
         total_usd = sol_balance * sol_price if sol_price else 0.0
+        if sol_price:
+            for position in staking_positions:
+                try:
+                    total_usd += float(position.get("size") or 0) * sol_price
+                except Exception:
+                    continue
         balances: List[Dict[str, Any]] = [
             {
                 "symbol": "SOL",
@@ -120,18 +224,29 @@ class SolanaAdapter(BaseAdapter):
         stable_usd = 0.0
         suspicious_tokens: List[Dict[str, Any]] = []
         filtered_tokens: List[Dict[str, Any]] = []
+        jupiter_prices = self._get_jupiter_prices([token["mint"] for token in raw_tokens[:20]])
+        metadata_cache: Dict[str, Dict[str, Any]] = {}
         for token in raw_tokens[:20]:
-            price_usd, change_24h = self._get_token_price(token["mint"])
+            mint = token["mint"]
+            metadata = metadata_cache.setdefault(mint, self._get_jupiter_token_metadata(mint))
+            price_usd, change_24h = jupiter_prices.get(mint, (None, None))
+            if price_usd is None and metadata.get("usdPrice") is not None:
+                price_usd = metadata.get("usdPrice")
+            if change_24h is None:
+                stats_24h = metadata.get("stats24h") if isinstance(metadata.get("stats24h"), dict) else {}
+                change_24h = stats_24h.get("priceChange")
+            if price_usd is None:
+                price_usd, change_24h = self._get_token_price(mint)
             usd_value = token["amount"] * price_usd if price_usd else None
-            symbol = self._short_mint(token["mint"])
-            name = token["mint"]
+            symbol = metadata.get("symbol") or self._short_mint(mint)
+            name = metadata.get("name") or mint
             decision = classify_token(name=name, symbol=symbol, usd_value=usd_value)
             if not decision.visible:
                 payload = audit_payload(
                     symbol=symbol,
                     name=name,
                     amount=round(token["amount"], 8),
-                    contract=token["mint"],
+                    contract=mint,
                     reason=decision.reason or "SPL ocultado do output principal.",
                     usd_value=self._fmt_usd(usd_value) if usd_value is not None else None,
                 )
@@ -150,7 +265,10 @@ class SolanaAdapter(BaseAdapter):
                     "usd_value": self._fmt_usd(usd_value),
                     "change_24h": f"{change_24h:.2f}%" if change_24h is not None else "n/d",
                     "category": decision.category if decision.category != "outros" else "spl",
-                    "mint": token["mint"],
+                    "mint": mint,
+                    "name": name,
+                    "liquidity_usd": metadata.get("liquidity"),
+                    "holder_count": metadata.get("holderCount"),
                 }
             )
 
@@ -171,6 +289,8 @@ class SolanaAdapter(BaseAdapter):
         visible_spl_count = max(0, len(balances) - 1)
         if visible_spl_count > 0:
             insights.append(f"🪙 {visible_spl_count} SPL(s) com valor relevante detectado(s) via RPC público.")
+        if staking_positions:
+            insights.append(f"🥩 {len(staking_positions)} stake account(s) SOL detectada(s) via RPC público.")
         hidden_count = len(suspicious_tokens) + len(filtered_tokens)
         if hidden_count:
             insights.append(f"🛡️ {hidden_count} SPL(s) ocultado(s) do output principal por segurança/baixo valor.")
@@ -192,20 +312,20 @@ class SolanaAdapter(BaseAdapter):
                 "categories": ["sol", "spl", "staking", "defi", "outros"],
             },
             balances=balances,
-            positions=[],
+            positions=staking_positions,
             insights=insights or ["ℹ️ Snapshot Solana obtido com RPC público."],
             actions=[
-                "Adicionar camada de metadata/token symbols para melhorar leitura dos SPLs.",
-                "Integrar staking/DeFi e preços mais completos como próximo passo da trilha Solana.",
+                "Integrar staking/DeFi como próximo passo da trilha Solana.",
+                "Validar tokens SPL de baixa liquidez antes de usar em decisão operacional.",
             ],
             coverage=Coverage(
                 level="medium",
-                summary="SOL e SPL balances via RPC público; preços e enriquecimento seguem parciais conforme disponibilidade pública.",
-                sources=["RPC público Solana", "CoinGecko público"],
+                summary="SOL e SPL balances via RPC público; metadata e preços SPL enriquecidos por Jupiter quando disponível.",
+                sources=["RPC público Solana", "Jupiter Lite API", "CoinGecko público"],
                 limits=[
-                    "Símbolos de SPL podem aparecer como mint encurtado nesta base inicial.",
-                    "Staking e posições DeFi ainda não estão integrados nesta primeira versão real.",
-                    "Preço em USD depende de cobertura pública por token.",
+                    "Símbolos de SPL podem aparecer como mint encurtado quando Jupiter/CoinGecko não tiver metadata.",
+                    "Staking nativo SOL é best-effort via RPC público; DeFi Solana ainda precisa de provider/indexador.",
+                    "Preço em USD depende de cobertura pública por token e liquidez disponível.",
                     "SPLs sem preço confiável ou abaixo de $0.01 são ocultados e preservados em raw.filtered_tokens.",
                 ],
             ),
@@ -213,6 +333,7 @@ class SolanaAdapter(BaseAdapter):
                 "wallet": wallet,
                 "balance_result": balance_result,
                 "token_result": token_result,
+                "staking": staking_raw,
                 "suspicious_tokens": suspicious_tokens,
                 "filtered_tokens": filtered_tokens,
             },

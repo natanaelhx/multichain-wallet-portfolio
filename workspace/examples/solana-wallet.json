@@ -1,5 +1,6 @@
 {
-  "wallet": "examplewallet.sol",
+  "wallet": "",
   "network": "solana",
-  "format": "json"
+  "format": "json",
+  "note": "Template seguro. Substitua por uma wallet real apenas em config local fora do Git."
 }

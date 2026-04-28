@@ -1,5 +1,6 @@
 {
-  "wallet": "vitalik.eth",
+  "wallet": "0x0000000000000000000000000000000000000000",
   "network": "ethereum",
-  "format": "json"
+  "format": "json",
+  "note": "Template seguro. Substitua por uma wallet real apenas em config local fora do Git."
 }
