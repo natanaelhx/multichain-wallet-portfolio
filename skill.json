@@ -1,7 +1,7 @@
 {
   "name": "multichain-wallet-portfolio",
-  "version": "1.1.1",
-  "description": "Skill MQC/OpenClaw para snapshot textual de portfolio multi-chain por wallet em EVM, Solana e Hyperliquid, com DeFi/staking 0-key, variação 24h e cobertura explícita.",
+  "version": "1.1.2",
+  "description": "Skill MQC/OpenClaw para snapshot textual operacional de portfolio multi-chain por wallet em EVM, Solana e Hyperliquid, com first run MQC, DeFi/staking 0-key, variação 24h e cobertura explícita.",
   "author": "natanaelhx",
   "license": "Proprietary",
   "homepage": "https://github.com/natanaelhx/multichain-wallet-portfolio",

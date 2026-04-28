@@ -20,12 +20,76 @@ EMOJI = {
 
 
 def render_pretty(result: PortfolioResult) -> str:
-    """Render single-wallet analysis in the same final text format used by daily cron.
-
-    Keeping single and daily outputs aligned prevents the interactive path from
-    drifting back to the older raw/debug-style format.
+    """Render single-wallet analysis using the same language/pattern as daily output,
+    but without degrading to the empty daily fallback for one-off wallet reads.
     """
-    return render_daily_summary([result])
+    date_label = _today_brt()
+    total_usd = _parse_usd(result.summary.get("total_usd"))
+    total_label = _fmt_usd(total_usd)
+    coverage_label = {
+        "high": "alta",
+        "medium": "média",
+        "low": "baixa",
+    }.get((result.coverage.level or "").lower(), result.coverage.level or "parcial")
+
+    lines = [
+        f"💼 Portfólio — {date_label}",
+        "",
+        f"🔎 Wallet: {result.wallet_resolved}",
+        f"🌐 Rede: {_network_label(result.network)}",
+        f"💰 Total estimado: ${total_label}",
+        f"📈 Variação total 24h: {result.summary.get('change_24h') or 'parcial'}",
+        f"⚠️ Cobertura: {coverage_label}",
+        "",
+        "---",
+    ]
+
+    priced_balances = _daily_priced_balances(result)
+    if priced_balances:
+        lines.extend(["", f"{_network_icon(result.network)} {_network_label(result.network)}"])
+        for item in priced_balances:
+            usd_value = f"${item.get('usd_value')}"
+            change = item.get("change_24h") or "n/d"
+            symbol = item.get("symbol", "?")
+            amount = _fmt_amount(item.get("amount", "n/d"))
+            lines.extend([
+                f"📊 {symbol} — {date_label} | {usd_value} | 24h: {change}",
+                f"• {amount} {symbol}",
+                "",
+            ])
+
+    if result.positions:
+        if not priced_balances:
+            lines.extend(["", f"{_network_icon(result.network)} {_network_label(result.network)}"])
+        for position in result.positions:
+            name = position.get("name", "POSITION")
+            usd_value = position.get("usd_value") or "parcial"
+            change = position.get("change_24h") or "n/d"
+            pnl = position.get("unrealized_pnl_usd")
+            pnl_suffix = f" | PnL: ${pnl}" if pnl and pnl != "n/d" else ""
+            lines.extend([
+                f"📊 {name} — {date_label} | ${usd_value} | 24h: {change}{pnl_suffix}",
+                _fmt_position_line(position),
+                "",
+            ])
+
+    if not priced_balances and not result.positions:
+        lines.extend([
+            "",
+            "Nenhum ativo com preço confiável entrou no resumo principal desta wallet.",
+            "",
+        ])
+
+    lines.extend(["---", "", "🧠 Insights"])
+    insights = result.insights or ["ℹ️ Snapshot concluído com cobertura parcial."]
+    lines.extend([f"- {item}" for item in insights])
+    lines.extend(["", "---", "", "⚠️ Cobertura por rede", f"- {_network_label(result.network)}: {result.coverage.summary}"])
+    if result.coverage.limits:
+        lines.extend([f"- Limites: {' | '.join(result.coverage.limits[:3])}"])
+    lines.extend(["", "---", "", "📌 Ações sugeridas"])
+    actions = result.actions or ["validar se a wallet e a rede informadas são as corretas"]
+    lines.extend([f"- {item}" for item in actions[:5]])
+    return "\n".join(lines).strip()
 
 
 def to_json_dict(result: PortfolioResult) -> Dict[str, Any]:

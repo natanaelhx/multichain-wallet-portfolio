@@ -34,7 +34,8 @@ Use quando o usuário pedir:
 1. Identifica a wallet e a rede.
 2. Se a rede não vier explícita, tenta inferir.
 3. Quando houver ambiguidade, pergunta uma coisa por vez.
-4. Coleta dados por adaptadores:
+4. No first run, explica o fluxo, faz a primeira pergunta pela wallet e só depois confirma rede/modo quando necessário.
+5. Coleta dados por adaptadores:
    - EVM: Ethereum, Base, Arbitrum, Optimism, Polygon, BNB/BSC, Avalanche e redes compatíveis mapeadas.
    - Solana: SOL, SPL tokens e staking nativo best-effort.
    - Hyperliquid: equity, posições, ordens abertas e PnL via API pública.
@@ -115,6 +116,18 @@ A saída textual principal deve seguir o padrão cron/manual unificado:
 ## 📌 Ações sugeridas
 - ação objetiva, se houver
 ```
+
+## First Run Operacional
+
+Quando a skill for acionada sem wallet suficiente para executar, o comportamento esperado e operacional e:
+
+1. explicar em 1 ou 2 linhas que vai ler a wallet em modo somente leitura;
+2. perguntar primeiro **qual wallet** deve ser analisada;
+3. se a rede nao estiver clara, perguntar a rede em seguida;
+4. executar assim que houver contexto suficiente;
+5. evitar questionario longo ou varias perguntas no mesmo passo.
+
+O helper `workspace/first_run_setup.py` deve refletir exatamente esse fluxo.
 
 ## Exemplos
 
