@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.1.3 — 13/05/2026
+
+### Adicionado
+
+- Wizard chat-first no padrão Skill Builder/MQC em `workspace/first_run_setup.py --json`.
+- Referência de onboarding em `references/onboarding-questionario.md`.
+- Metadata `skill.json.metadata.wizard` com entrypoints e guardrails.
+- `PROJECT.md` e `RELEASE_NOTES.md` com estado de release.
+
+### Segurança
+
+- Wizard não pede seed phrase, private key, mnemonic, token, API key, webhook ou segredo no chat.
+- Fluxo continua somente leitura, sem conectar wallet, assinar transação ou mover fundos.
+
+### Validação
+
+- `python3 workspace/first_run_setup.py --json`
+- `python3 workspace/run.py --first-run --format json --no-bootstrap`
+- `python3 workspace/run.py --runtime-status`
+- `python3 -m py_compile workspace/*.py workspace/adapters/*.py`
+
 ## 1.1.2 — 28/04/2026
 
 ### Corrigido

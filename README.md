@@ -100,9 +100,12 @@ Comandos úteis:
 ```bash
 cd workspace
 python3 run.py --runtime-status
+python3 first_run_setup.py --json
 python3 run.py --first-run --format json
 python3 run.py --no-bootstrap --help
 ```
+
+O wizard segue o padrão Skill Builder/MQC: chat-first, uma pergunta por vez, sem pedir seed/private key/API key no chat e sem bloquear runtime não interativo.
 
 ## Uso Local
 

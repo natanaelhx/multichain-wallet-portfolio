@@ -69,10 +69,34 @@ Fontes públicas usadas quando disponíveis:
 
 - O executor principal é `workspace/run.py`.
 - Use `python3 run.py --first-run --format json` para validar o onboarding e preparar dependências.
+- Use `python3 first_run_setup.py --json` para obter o payload chat-first do wizard sem executar coleta.
 - Use `python3 run.py --runtime-status` para auditar venv/dependências.
 - `requests>=2.31.0` está em `workspace/requirements.txt` e é instalado no venv local quando possível.
 - Em runtime sem pip/ensurepip, `requests_compat.py` cobre as chamadas HTTP públicas com stdlib como fallback.
 - Não instalar pacotes no Python do sistema; evitar PEP 668 usando venv local ou fallback embutido.
+
+## Wizard / Primeira Configuração
+
+O wizard segue o padrão Skill Builder/MQC: **chat-first**, uma pergunta por vez, sem bloquear runtime não interativo.
+
+Referência operacional: `references/onboarding-questionario.md`.
+
+Entrypoints seguros:
+
+```bash
+cd workspace
+python3 first_run_setup.py --json
+python3 run.py --first-run --format json
+```
+
+Regras do wizard:
+
+- explicar que a skill é somente leitura antes da primeira pergunta;
+- pedir primeiro a wallet;
+- confirmar rede/escopo/formato só quando necessário;
+- nunca pedir seed phrase, private key, mnemonic, token, API key ou webhook no chat;
+- tratar DeBank como provider opcional já configurado no ambiente/secret manager, nunca como chave enviada pelo usuário no chat;
+- não inventar saldo, preço, PnL, DeFi, staking ou valuation ausente.
 
 ## Providers Opcionais
 
