@@ -217,3 +217,32 @@ Consulte [`CHANGELOG.md`](./CHANGELOG.md).
 ## Licença
 
 Proprietary — natanaelhx
+
+<!-- MQC_README_WIZARD_PATHS_START -->
+
+## Wizard: iniciante ou avançado
+
+Esta skill segue o padrão MQC de wizard por caminhos. No início da configuração, o usuário escolhe:
+
+| Caminho | Para quem | Como funciona |
+|---|---|---|
+| Iniciante | usuário que quer orientação rápida e segura | passo a passo guiado, linguagem simples, defaults conservadores |
+| Avançado | usuário/operator que quer controle fino | parâmetros completos, validações/dry-run quando aplicável, rastreabilidade de runtime/release |
+
+O fluxo completo fica em `references/onboarding-questionario.md`. Segredos nunca devem ser enviados no chat.
+
+<!-- MQC_README_WIZARD_PATHS_END -->
+
+<!-- MQC_SECRET_GUIDANCE_START -->
+
+## Chaves e segredos
+
+Por segurança, não envie API keys, tokens, webhooks, OAuth, private keys ou seeds pelo chat.
+
+- Chaves de IA/LLM: `painel MQC > Chaves e Segredos > Chaves LLM`
+- Chaves de serviço/API externa: `painel MQC > Chaves e Segredos > Chaves de Serviço`
+- OAuth Anthropic: `painel MQC > Chaves e Segredos > OAuth Token`
+
+Depois de configurar, basta dizer que a chave já está salva.
+
+<!-- MQC_SECRET_GUIDANCE_END -->

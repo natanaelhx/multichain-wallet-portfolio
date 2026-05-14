@@ -202,3 +202,30 @@ O helper `workspace/first_run_setup.py` deve refletir exatamente esse fluxo.
 **Usuário:** `mostra minhas posições DeFi Solana`
 
 **Resposta esperada:** retornar staking nativo quando disponível e explicar que DeFi Solana indexado exige provider confiável; não inventar posições.
+
+<!-- MQC_SKILL_WIZARD_PATHS_START -->
+
+## Wizard por caminhos — obrigatório
+
+Quando configurar, refazer questionário, executar first run ou perceber usuário iniciante/incerto, a skill **Multichain Wallet Portfolio** deve começar oferecendo a escolha:
+
+- **Caminho iniciante:** guiado, simples, uma pergunta por vez, defaults seguros.
+- **Caminho avançado:** configuração completa, parâmetros, validações/dry-run quando aplicável e rastreabilidade operacional.
+
+Use `references/onboarding-questionario.md` como fonte do passo a passo. O usuário pode trocar de caminho durante o fluxo se isso não quebrar segurança ou rastreabilidade. Nunca pedir segredos no chat; apenas confirmar que credenciais já estão salvas no ambiente/Secret Manager/MQC.
+
+<!-- MQC_SKILL_WIZARD_PATHS_END -->
+
+<!-- MQC_SECRET_GUIDANCE_START -->
+
+## Chaves e segredos — padrão MQC
+
+Nunca pedir valores de API key, token, webhook, OAuth, private key ou seed no chat. Quando a skill precisar de credencial, orientar o usuário pelo caminho da plataforma:
+
+- Provider IA/LLM: `painel MQC > Chaves e Segredos > Chaves LLM`
+- Chave de serviço/API externa: `painel MQC > Chaves e Segredos > Chaves de Serviço`
+- OAuth Anthropic: `painel MQC > Chaves e Segredos > OAuth Token`
+
+No chat, pedir apenas confirmação de que a credencial já está salva e, quando necessário, usar só o nome da env/secret.
+
+<!-- MQC_SECRET_GUIDANCE_END -->

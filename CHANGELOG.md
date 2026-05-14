@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.4 — 13/05/2026
+
+### Alterado
+
+- Publicação canônica movida para a org `QuickClaw-Skills/skill-multichain-wallet-portfolio`.
+- `skill.json.homepage`, `PROJECT.md` e metadata de release alinhados à org.
+
+### Validação
+
+- `multichain_wizard_ok`
+
 ## 1.1.3 — 13/05/2026
 
 ### Adicionado

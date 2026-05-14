@@ -5,6 +5,44 @@ import argparse
 import json
 from typing import Any
 
+
+CREDENTIAL_GUIDANCE = {
+    "must_show_to_user": True,
+    "title": "Onde configurar chaves e segredos no MQC",
+    "short_explanation": "Por segurança, não envie API keys, tokens, webhooks, OAuth, private keys, seeds ou secrets pelo chat. Configure tudo no painel MQC em Chaves e Segredos e depois me diga apenas se já está salvo.",
+    "paths": {
+        "llm_provider_keys": "painel MQC > Chaves e Segredos > Chaves LLM",
+        "service_api_keys": "painel MQC > Chaves e Segredos > Chaves de Serviço",
+        "anthropic_oauth": "painel MQC > Chaves e Segredos > OAuth Token"
+    },
+    "chat_allowed_answers": ["já está salvo", "não está salvo", "não sei"],
+    "never_ask_for": ["API key", "token", "webhook", "OAuth token", "private key", "seed phrase", "secret value"],
+    "user_message_template": "Essa skill precisa de {credential_name}. Por segurança, não cole a chave aqui. Configure em painel MQC > Chaves e Segredos > {section} e me diga apenas se já está salvo.",
+}
+
+WIZARD_PATH_CHOICE = {
+    "field": "wizard_path",
+    "reason": "Define o nível de detalhe do wizard antes das perguntas operacionais.",
+    "question": "Como você quer seguir: 1) Caminho iniciante — passo a passo guiado e simples; ou 2) Caminho avançado — configuração completa com validações/dry-run quando aplicável?",
+    "options": ["iniciante", "avancado"],
+    "aliases": {"1": "iniciante", "guiado": "iniciante", "simples": "iniciante", "2": "avancado", "avançado": "avancado", "completo": "avancado"},
+    "default": "iniciante",
+}
+
+WIZARD_PATHS = {
+    "choice_required": True,
+    "beginner": {
+        "label": "Caminho iniciante",
+        "description": "Passo a passo guiado, linguagem simples, defaults seguros e só as decisões essenciais.",
+    },
+    "advanced": {
+        "label": "Caminho avançado",
+        "description": "Configuração completa, parâmetros, validações/dry-run quando aplicável e rastreabilidade operacional.",
+    },
+    "can_switch_when_safe": True,
+    "never_request_secrets_in_chat": True,
+}
+
 INTRODUCTION = (
     "Esta skill lê uma wallet em modo somente leitura, consolida redes suportadas "
     "e entrega um resumo de portfólio com cobertura explícita. Ela não conecta wallet, "
@@ -146,6 +184,7 @@ def build_wizard_payload(
         "output_format": _normalize_format(output_format),
         "questionnaire_completed": False,
     }
+    state.setdefault("wizard_path", None)
     next_question = _next_question(state)
     state["questionnaire_completed"] = next_question is None
 
@@ -155,6 +194,7 @@ def build_wizard_payload(
         "skill": "multichain-wallet-portfolio",
         "introduction": INTRODUCTION,
         "reference": "references/onboarding-questionario.md",
+        "credential_guidance": CREDENTIAL_GUIDANCE,
         "workflow": explain_workflow(),
         "required_fields": ["wallet"],
         "optional_fields": ["network", "scope", "output_format"],
@@ -166,8 +206,9 @@ def build_wizard_payload(
             "never_request_secrets_in_chat": True,
             "read_only": True,
         },
-        "question_flow": _question_flow(),
-        "next_question": next_question,
+        "wizard_paths": WIZARD_PATHS,
+        "question_flow": [WIZARD_PATH_CHOICE] + _question_flow(),
+        "next_question": WIZARD_PATH_CHOICE if next_question is not None else None,
         "state": state,
         "safe_commands": {
             "first_run": "python3 workspace/run.py --first-run --format json",
